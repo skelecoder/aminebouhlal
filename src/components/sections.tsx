@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   site,
   stats,
@@ -18,24 +19,43 @@ import { Section, CTA } from "@/components/chrome";
 export function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-5 pt-20 pb-16 sm:px-8 sm:pt-28">
-      <p className="mb-5 font-mono text-[11px] tracking-[0.22em] text-accent uppercase">
-        {site.name} · Solutions Architect · Agentic AI · {site.location}
-      </p>
-      <h1 className="max-w-3xl font-display text-4xl leading-tight font-medium tracking-tight text-ink sm:text-6xl">
-        <span className="sr-only">{site.name} — </span>I turn business problems into{" "}
-        <span className="text-accent">systems that ship.</span>
-      </h1>
-      <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-        {site.positioning}
-      </p>
-      <div className="mt-8 flex flex-wrap gap-3">
-        <CTA href="#work" primary>
-          Selected work ↓
-        </CTA>
-        <CTA href={`mailto:${site.email}`}>Email me</CTA>
-        <CTA href={site.linkedin} external>
-          LinkedIn ↗
-        </CTA>
+      <div className="flex flex-col-reverse items-start gap-10 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="mb-5 font-mono text-[11px] tracking-[0.22em] text-accent uppercase">
+            {site.name} · Solutions Architect · Agentic AI · {site.location}
+          </p>
+          <h1 className="max-w-3xl font-display text-4xl leading-tight font-medium tracking-tight text-ink sm:text-6xl">
+            <span className="sr-only">{site.name} — </span>I turn business problems into{" "}
+            <span className="text-accent">systems that ship.</span>
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+            {site.positioning}
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <CTA href="#work" primary>
+              Selected work ↓
+            </CTA>
+            <CTA href={`mailto:${site.email}`}>Email me</CTA>
+            <CTA href={site.linkedin} external>
+              LinkedIn ↗
+            </CTA>
+          </div>
+        </div>
+        <figure className="shrink-0">
+          <div className="border border-line bg-surface p-1.5">
+            <Image
+              src="/amine-bouhlal.jpg"
+              alt="Portrait of Amine Bouhlal"
+              width={800}
+              height={800}
+              priority
+              className="h-40 w-40 object-cover sm:h-48 sm:w-48 lg:h-60 lg:w-60"
+            />
+          </div>
+          <figcaption className="mt-2 text-center font-mono text-[10px] tracking-[0.18em] text-faint uppercase">
+            Tangier · 35.77°N 5.80°W
+          </figcaption>
+        </figure>
       </div>
       <div className="mt-16 border border-line-soft bg-surface/40 p-4 sm:p-8">
         <HeroDiagram />

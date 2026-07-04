@@ -24,6 +24,7 @@ export default function Home() {
       description:
         "Solutions architect specialising in agentic AI, cloud platforms and digital transformation. 8+ years delivering production systems across Europe, Africa and North America.",
       url: site.url,
+      image: `${site.url}/amine-bouhlal.jpg`,
       email: `mailto:${site.email}`,
       sameAs: [site.linkedin],
       address: {
