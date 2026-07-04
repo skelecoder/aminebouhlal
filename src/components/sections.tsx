@@ -19,7 +19,7 @@ import { Section, CTA } from "@/components/chrome";
 export function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-5 pt-20 pb-16 sm:px-8 sm:pt-28">
-      <div className="flex flex-col-reverse items-start gap-10 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col items-start gap-10 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="mb-5 font-mono text-[11px] tracking-[0.22em] text-accent uppercase">
             {site.name} · Solutions Architect · Agentic AI · {site.location}
@@ -49,6 +49,7 @@ export function Hero() {
               width={800}
               height={800}
               priority
+              sizes="(min-width: 1024px) 240px, (min-width: 640px) 192px, 160px"
               className="h-40 w-40 object-cover sm:h-48 sm:w-48 lg:h-60 lg:w-60"
             />
           </div>
@@ -148,7 +149,7 @@ export function Approach() {
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
         {approach.map((a) => (
           <div key={a.step} className="relative">
-            <p className="font-mono text-3xl text-accent/40">{a.step}</p>
+            <p className="font-mono text-3xl text-accent/60">{a.step}</p>
             <h3 className="mt-3 font-display text-lg font-medium text-ink">{a.title}</h3>
             <p className="mt-3 text-sm leading-relaxed text-muted">{a.text}</p>
           </div>
