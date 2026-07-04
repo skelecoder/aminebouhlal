@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 const decisions = [
   {
     title: "Fully static, no moving parts",
-    text: "Every page is generated at build time. No server, no database, no cookies, no client-side tracking. There is nothing to patch at 3 a.m. and nothing to leak.",
+    text: "Every page is generated at build time. No server, no database, no cookies, no cross-site tracking — the only measurement is anonymous, cookieless page counts (Vercel Web Analytics). There is nothing to patch at 3 a.m. and nothing to leak.",
   },
   {
     title: "Diagrams are the imagery",
