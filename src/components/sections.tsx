@@ -19,10 +19,10 @@ export function Hero() {
   return (
     <section className="mx-auto max-w-6xl px-5 pt-20 pb-16 sm:px-8 sm:pt-28">
       <p className="mb-5 font-mono text-[11px] tracking-[0.22em] text-accent uppercase">
-        Solutions Architect · Agentic AI · {site.location} · Remote
+        {site.name} · Solutions Architect · Agentic AI · {site.location}
       </p>
       <h1 className="max-w-3xl font-display text-4xl leading-tight font-medium tracking-tight text-ink sm:text-6xl">
-        I turn business problems into{" "}
+        <span className="sr-only">{site.name} — </span>I turn business problems into{" "}
         <span className="text-accent">systems that ship.</span>
       </h1>
       <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
