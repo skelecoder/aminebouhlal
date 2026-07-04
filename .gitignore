@@ -1,0 +1,20 @@
+# deps / build
+/node_modules
+/.next
+/out
+next-env.d.ts
+*.tsbuildinfo
+
+# vercel
+.vercel
+
+# env
+.env*
+
+# local working docs — never commit
+claude-guide-amine.md
+CV_Amine_Bouhlal_EN.pdf
+
+# os
+.DS_Store
+Thumbs.db

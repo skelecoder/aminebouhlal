@@ -1,0 +1,69 @@
+# Amine Bouhlal — Solutions Architect
+
+> Amine Bouhlal is a solutions architect based in Tangier, Morocco, specialising
+> in agentic AI, cloud platforms and digital transformation. 8+ years delivering
+> production systems across Europe, Africa and North America. Currently a
+> Solutions Architect at NTT DATA, Inc. Works remotely worldwide (CET / GMT+1).
+
+Site: https://aminebouhlal.com
+Email: abouhlal@gmail.com
+LinkedIn: https://www.linkedin.com/in/amine-bouhlal
+Languages: Spanish (native), Arabic (native), English (professional), French (professional)
+
+## What he does
+
+- Agentic-AI systems: production voice and conversational agents grounded in
+  enterprise systems, with human handoff designed in. One system he architected
+  handles 180,000+ customer calls per month in production.
+- Solution architecture: business problem → components, integrations, data
+  flows, explicit trade-offs. Hands-on from discovery to deployment.
+- Digital transformation: replacing manual workflows with systems — process
+  automation, company-wide ERP consolidation (Odoo).
+- Cloud & platform engineering: GCP-native architecture (Vertex AI, Gemini
+  Enterprise, BigQuery, Cloud Composer, Firebase), CI/CD, deployment pipelines.
+
+## Selected work
+
+- Voice AI at logistics scale (https://aminebouhlal.com/work/voice-ai-at-logistics-scale):
+  ElevenLabs voice agent for a European parcel-logistics leader — 180,000+
+  calls/month in production. Delivered at NTT DATA.
+- Conversational AI for consumer finance (https://aminebouhlal.com/work/conversational-ai-for-consumer-finance):
+  Gemini Enterprise agents for the consumer-finance arm of a major European
+  retail group — self-service plus advisor assist, grounded in enterprise
+  knowledge. Delivered at NTT DATA.
+- Smart-city platform for Gijón, Spain (https://aminebouhlal.com/work/smart-city-platform-gijon):
+  Gijón-IN for Gijón City Council (~275,000 residents) — IoT and municipal data,
+  Elasticsearch, geospatial UI. Delivered at T-Systems Iberia.
+- ERP consolidation (https://aminebouhlal.com/work/erp-consolidation-odoo):
+  company-wide Odoo rollout across IT, Operations, Sales and HR for AUTICS
+  Group, Tangier.
+- adamaguidi.com (https://aminebouhlal.com/work/adamaguidi-com): portfolio site
+  for a film art director — ranked №1 on Google for his name within a day of
+  launch, via structured data and AI-crawler optimisation.
+
+## Career
+
+- 2024–present: Solutions Architect, NTT DATA, Inc. (remote) — agentic AI and
+  digital transformation for European enterprises in telecom, logistics and
+  retail finance.
+- 2023–2024: Solutions Architect, AUTICS Group, Tangier — led IT operations and
+  company-wide Odoo ERP rollout.
+- 2022–2023: DevOps/Platform Engineer, coupolino AG, Switzerland — CI/CD for the
+  Scount AR product.
+- 2021–2022: Full-Stack Engineer, GovRight — US legal-tech and civic-tech.
+- 2020–2021: Software Engineer, T-Systems Iberia, Barcelona — Gijón-IN smart
+  city and Syrah Sostenibilidad; Deutsche Telekom Global Hackathon winner 2021.
+- 2019: Technical Consultant, Consulate General of Spain in Tangier.
+
+## Education & awards
+
+- UPC (Software Quality Assurance), UOC (Industry 4.0), CESIM (Computer
+  Engineering).
+- Winner, Deutsche Telekom Global Hackathon (2021). 2nd prize, OIF Sustainable
+  Solutions Hackathon (2018).
+
+## Contact
+
+Fastest: email abouhlal@gmail.com or LinkedIn
+(https://www.linkedin.com/in/amine-bouhlal). Based in Tangier, Morocco;
+available for remote consulting worldwide.

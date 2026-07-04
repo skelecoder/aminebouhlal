@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0e14;
+  --color-surface: #0e141f;
+  --color-raised: #131b29;
+  --color-line: #1c2635;
+  --color-line-soft: #16202e;
+  --color-ink: #dce5f0;
+  --color-muted: #8b9bb0;
+  --color-faint: #5c6b80;
+  --color-accent: #22d3ee;
+  --color-accent-soft: rgba(34, 211, 238, 0.12);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "Cascadia Code", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(
+    circle,
+    rgba(139, 155, 176, 0.09) 1px,
+    transparent 1px
+  );
+  background-size: 28px 28px;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+/* --- diagram animation language ------------------------------------- */
+
+/* static under-track of a flow line */
+.d-track {
+  stroke: var(--color-line);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+/* animated current running along the track */
+.d-flow {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-dasharray: 3 14;
+  stroke-linecap: round;
+  animation: d-flow 1.6s linear infinite;
+  opacity: 0.9;
+}
+
+@keyframes d-flow {
+  to {
+    stroke-dashoffset: -17;
+  }
+}
+
+.d-node {
+  fill: var(--color-surface);
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+
+.d-node-accent {
+  stroke: var(--color-accent);
+  stroke-opacity: 0.55;
+}
+
+.d-port {
+  fill: var(--color-bg);
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+}
+
+.d-pulse {
+  animation: d-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes d-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.d-title {
+  fill: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.d-label {
+  fill: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.d-tag {
+  fill: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .d-flow,
+  .d-pulse {
+    animation: none;
+  }
+}
