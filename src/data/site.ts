@@ -42,11 +42,35 @@ export type CaseStudy = {
   outcome: string;
   metrics: { value: string; label: string }[];
   stack: string[];
-  diagram: "voice" | "finance" | "city" | "erp" | "web";
+  diagram: "desk" | "voice" | "finance" | "city" | "erp" | "web";
   diagramCaption: string;
 };
 
 export const caseStudies: CaseStudy[] = [
+  {
+    slug: "multi-agent-service-desk",
+    title: "A multi-agent service desk on Google's agent platform",
+    client: "NTT DATA — internal IT, enterprise scale",
+    context: "Solutions Architect — architecture owner",
+    period: "2026 — in delivery",
+    summary:
+      "An AI-first IT service desk on the Gemini Enterprise Agent Platform: a triage orchestrator delegating to specialised agents over A2A, layered above existing ITSM systems — which stay untouched as systems of record.",
+    challenge:
+      "An enterprise service desk absorbing high volumes of well-understood requests — password resets, access, software — on top of ITSM platforms that encode years of process and compliance investment. Replacing them would be a multi-year migration with zero strategic upside; leaving the experience as-is keeps burning L1 capacity on routine work.",
+    approach:
+      "Architected an orchestration layer above the ticketing backends, not a replacement: a triage orchestrator built with Google's Agent Development Kit (ADK), deployed to Agent Runtime on the Gemini Enterprise Agent Platform (the platform formerly known as Vertex AI, rebranded at Cloud Next '26). It classifies intent and delegates over the A2A protocol to specialised peer agents — identity & access (Entra ID), RAG-grounded knowledge with citations on every claim — with managed Sessions and Memory Bank for state, multi-model routing across Claude and Gemini via LiteLLM, and human-in-the-loop gates on sensitive actions. A ticketing-port abstraction keeps the agentic core decoupled from any specific ITSM backend, with an adapter per system.",
+    outcome:
+      "In delivery: eleven accepted architecture decision records, a multi-backend core that treats existing ITSM platforms as immutable systems of record, agent-eval gates in CI, and a design built to productise across business units — the reference architecture for agentic service operations.",
+    metrics: [
+      { value: "0", label: "ITSM migrations — orchestrate above, never replace" },
+      { value: "A2A", label: "peer agents: triage, identity, knowledge, and growing" },
+      { value: "4", label: "models routed by task — Claude + Gemini via LiteLLM" },
+    ],
+    stack: ["Gemini Enterprise Agent Platform", "Google ADK", "A2A", "Claude", "Python", "Next.js", "Terraform"],
+    diagram: "desk",
+    diagramCaption:
+      "Web and Teams channels feed a triage orchestrator (ADK, on Agent Runtime), which delegates over A2A to specialised agents; a ticketing-port abstraction adapts to each ITSM backend, preserved as the system of record.",
+  },
   {
     slug: "voice-ai-at-logistics-scale",
     title: "Voice AI at logistics scale",
@@ -285,7 +309,8 @@ export const skills = [
     items: [
       "LLM orchestration",
       "Conversational & voice agents",
-      "Vertex AI",
+      "Gemini Enterprise Agent Platform (form. Vertex AI)",
+      "Google ADK · A2A",
       "Gemini Enterprise",
       "Claude",
       "ElevenLabs",

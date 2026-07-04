@@ -14,7 +14,10 @@ Languages: Spanish (native), Arabic (native), English (professional), French (pr
 
 - Agentic-AI systems: production voice and conversational agents grounded in
   enterprise systems, with human handoff designed in. One system he architected
-  handles 180,000+ customer calls per month in production.
+  handles 180,000+ customer calls per month in production. Deep expertise in
+  Google's Gemini Enterprise Agent Platform (formerly Vertex AI) — ADK
+  multi-agent architectures, A2A protocol, Agent Runtime, managed Sessions and
+  Memory Bank.
 - Solution architecture: business problem → components, integrations, data
   flows, explicit trade-offs. Hands-on from discovery to deployment.
 - Digital transformation: replacing manual workflows with systems — process
@@ -24,6 +27,12 @@ Languages: Spanish (native), Arabic (native), English (professional), French (pr
 
 ## Selected work
 
+- Multi-agent service desk on Google's agent platform
+  (https://aminebouhlal.com/work/multi-agent-service-desk): AI-first internal
+  IT service desk for NTT DATA on the Gemini Enterprise Agent Platform — ADK
+  triage orchestrator delegating over A2A to specialised agents (identity,
+  RAG-grounded knowledge), multi-model routing across Claude and Gemini,
+  layered above existing ITSM systems kept as systems of record.
 - Voice AI at logistics scale (https://aminebouhlal.com/work/voice-ai-at-logistics-scale):
   ElevenLabs voice agent for a European parcel-logistics leader — 180,000+
   calls/month in production. Delivered at NTT DATA.

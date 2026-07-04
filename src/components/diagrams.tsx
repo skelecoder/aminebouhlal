@@ -88,6 +88,35 @@ export function HeroDiagram() {
   );
 }
 
+export function DeskDiagram() {
+  return (
+    <svg viewBox="0 0 680 240" className="w-full" role="img" aria-label="Multi-agent service desk: web and Teams channels feed an ADK triage orchestrator, which delegates over A2A to identity, knowledge and ticketing agents; a port abstraction adapts to ITSM backends kept as systems of record.">
+      <Node x={36} y={38} w={100} h={40} title="WEB APP" sub="Next.js" />
+      <Node x={36} y={162} w={100} h={40} title="TEAMS BOT" sub="Entra SSO" />
+      <Flow d="M136 58 C 162 58 162 120 188 120" />
+      <Flow d="M136 182 C 162 182 162 120 188 120" />
+      <Node x={188} y={90} w={144} h={60} title="ORCHESTRATOR" sub="ADK · Agent Runtime" accent />
+      <text x={260} y={168} textAnchor="middle" className="d-tag">
+        SESSIONS · MEMORY
+      </text>
+      <Flow d="M332 108 C 354 108 354 49 376 49" />
+      <Flow d="M332 120 H376" />
+      <Flow d="M332 132 C 354 132 354 191 376 191" />
+      <text x={354} y={30} textAnchor="middle" className="d-tag">
+        A2A
+      </text>
+      <Node x={376} y={28} w={128} h={42} title="IAM AGENT" sub="Entra ID · HITL" />
+      <Node x={376} y={99} w={128} h={42} title="KNOWLEDGE" sub="RAG · citations" />
+      <Node x={376} y={170} w={128} h={42} title="TICKETING PORT" sub="adapter / backend" />
+      <Flow d="M504 191 H540" />
+      <Node x={540} y={163} w={124} h={56} title="ITSM BACKENDS" sub="systems of record" dashed />
+      <text x={602} y={148} textAnchor="middle" className="d-tag">
+        PRESERVED
+      </text>
+    </svg>
+  );
+}
+
 export function VoiceDiagram() {
   return (
     <svg viewBox="0 0 680 240" className="w-full" role="img" aria-label="Voice agent architecture: caller through telephony into an ElevenLabs voice agent, grounded in carrier APIs, with human handoff.">
@@ -194,8 +223,10 @@ export function WebDiagram() {
   );
 }
 
-export function CaseDiagram({ kind }: { kind: "voice" | "finance" | "city" | "erp" | "web" }) {
+export function CaseDiagram({ kind }: { kind: "desk" | "voice" | "finance" | "city" | "erp" | "web" }) {
   switch (kind) {
+    case "desk":
+      return <DeskDiagram />;
     case "voice":
       return <VoiceDiagram />;
     case "finance":
