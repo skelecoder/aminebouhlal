@@ -41,19 +41,19 @@ export function Hero() {
             </CTA>
           </div>
         </div>
-        <figure className="shrink-0">
-          <div className="border border-line bg-surface p-1.5">
+        <figure className="order-first shrink-0 lg:order-none">
+          <div className="w-fit border border-line bg-surface p-1.5">
             <Image
               src="/amine-bouhlal.jpg"
               alt="Portrait of Amine Bouhlal"
               width={800}
               height={800}
               priority
-              sizes="(min-width: 1024px) 240px, (min-width: 640px) 192px, 160px"
-              className="h-40 w-40 object-cover sm:h-48 sm:w-48 lg:h-60 lg:w-60"
+              sizes="(min-width: 1024px) 240px, 112px"
+              className="h-28 w-28 object-cover lg:h-60 lg:w-60"
             />
           </div>
-          <figcaption className="mt-2 text-center font-mono text-[10px] tracking-[0.18em] text-faint uppercase">
+          <figcaption className="mt-2 font-mono text-[10px] tracking-[0.18em] text-faint uppercase max-lg:hidden lg:text-center">
             Tangier · 35.77°N 5.80°W
           </figcaption>
         </figure>
