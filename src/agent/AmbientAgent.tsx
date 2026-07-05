@@ -17,6 +17,8 @@ type LogEntry = { t: string; kind: "signal" | "action" | "info" | "director"; te
 
 const TICK_MS = 5000;
 const MIN_ACTION_GAP_MS = 10_000;
+const INVITATION =
+  "Want to know more about the agentic A I project? Press tilde to meet the agent behind this site.";
 
 export default function AmbientAgent() {
   const [armed, setArmed] = useState(false);
@@ -29,6 +31,7 @@ export default function AmbientAgent() {
 
   const gestured = useRef(false);
   const invited = useRef(false);
+  const pendingInvite = useRef(false);
   const tourOffered = useRef(false);
   const observerRef = useRef<Observer | null>(null);
   const firedRules = useRef(new Set<string>());
@@ -116,14 +119,17 @@ export default function AmbientAgent() {
       (slug) => {
         // Spoken invitation the first time the flagship case enters the viewport.
         if (slug !== "multi-agent-service-desk" || invited.current || touring) return;
-        invited.current = true;
-        const text = "Want to know more about the agentic A I project? Press tilde to meet the agent behind this site.";
         if (soundEnabled() && canSpeak()) {
+          invited.current = true;
           addLog("action", "speak(invitation)");
-          void speak(text);
+          void speak(INVITATION);
           setWhisper({ text: "Curious? The full case study →", href: "/work/multi-agent-service-desk" });
         } else {
-          setWhisper({ text: "Want the story behind the agentic-AI project? →", href: "/work/multi-agent-service-desk" });
+          // No gesture yet → the browser won't let us speak. Park the
+          // invitation and hint at the voice instead of wasting the moment.
+          pendingInvite.current = true;
+          addLog("info", "invitation parked (no audio unlock yet)");
+          setWhisper({ text: "The agent can talk. Click anywhere, voice comes online." });
         }
       }
     );
@@ -134,6 +140,16 @@ export default function AmbientAgent() {
     const tick = window.setInterval(async () => {
       if (touring) return; // the tour has the floor
       const summary = obs.summary(firedActions.current, soundEnabled());
+
+      // A parked invitation speaks as soon as audio is unlocked.
+      if (pendingInvite.current && !invited.current && soundEnabled() && canSpeak()) {
+        pendingInvite.current = false;
+        invited.current = true;
+        addLog("action", "speak(invitation)");
+        void speak(INVITATION);
+        setWhisper({ text: "Curious? The full case study →", href: "/work/multi-agent-service-desk" });
+        return;
+      }
 
       // Offer the guided tour once, to engaged first-time visitors.
       if (!tourOffered.current && summary.secondsOnPage >= 25 && summary.maxScrollPct >= 15) {
@@ -238,6 +254,11 @@ export default function AmbientAgent() {
             setSoundOn(next);
             localStorage.setItem("ab-agent-mute", next ? "0" : "1");
             addLog("info", next ? "voice on" : "voice muted");
+            if (next && canSpeak()) {
+              // The click itself unlocks audio — prove the voice exists.
+              gestured.current = true;
+              void speak("Voice online. I'm the resident agent. Scroll, and I'll point out what matters.");
+            }
           }}
           className="border-l border-line px-2.5 font-mono text-[11px] text-faint transition-colors hover:text-accent"
         >
