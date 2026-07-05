@@ -31,6 +31,10 @@ const decisions = [
     text: "Next.js 16.2.10 · React 19.2.7 · Tailwind CSS 4.3.2 · TypeScript 5.9.3 — exact versions, checked against the registry at build day, no ranges.",
   },
   {
+    title: "An ambient agent, not a chatbot",
+    text: "The site runs a small agent that observes reading behaviour and responds with visual cues — a glow, a guide-line, a revealed shortcut — before it ever uses words. Observation stays in your browser; if the agent consults its LLM director (Gemini on GCP, via keyless OIDC federation), it sends only an anonymous behaviour summary: no identifiers, no text you typed, nothing to sell. Press ~ to open its console, watch its decisions, or switch it off.",
+  },
+  {
     title: "Costs about a domain name",
     text: "Static output on Vercel's free tier plus the domain: roughly $12 a year, total. Architecture is also knowing when the right amount of infrastructure is almost none.",
   },

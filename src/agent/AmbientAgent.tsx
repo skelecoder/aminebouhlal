@@ -1,0 +1,246 @@
+"use client";
+
+// The ambient agent: observes silently, acts visually, speaks last.
+// Press ~ (or click the status port) to open the console and watch it think.
+// Everything it observes stays in this browser; only an anonymous behaviour
+// summary is sent if the LLM director is consulted. Kill switch included.
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Observer } from "./observer";
+import { evaluateRules, shouldConsultDirector } from "./rules";
+import { applyAction } from "./actuators";
+import { sanitizeActions, type AgentAction } from "./protocol";
+
+type LogEntry = { t: string; kind: "signal" | "action" | "info" | "director"; text: string };
+
+const TICK_MS = 5000;
+const MIN_ACTION_GAP_MS = 10_000;
+
+export default function AmbientAgent() {
+  const [armed, setArmed] = useState(false);
+  const [disabled, setDisabled] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [whisper, setWhisper] = useState<{ text: string; href?: string } | null>(null);
+
+  const observerRef = useRef<Observer | null>(null);
+  const firedRules = useRef(new Set<string>());
+  const firedActions = useRef<string[]>([]);
+  const lastActionAt = useRef(0);
+  const directorCalls = useRef(0);
+  const directorBusy = useRef(false);
+
+  const addLog = useCallback((kind: LogEntry["kind"], text: string) => {
+    const t = new Date().toTimeString().slice(0, 8);
+    setLog((l) => [...l.slice(-79), { t, kind, text }]);
+  }, []);
+
+  const runAction = useCallback(
+    (action: AgentAction, source: string) => {
+      const now = Date.now();
+      if (now - lastActionAt.current < MIN_ACTION_GAP_MS) return false;
+      lastActionAt.current = now;
+      firedActions.current.push(`${action.type}:${source}`);
+      applyAction(action, {
+        log: (k, text) => addLog(k, text),
+        reducedMotion: observerRef.current?.reducedMotion ?? false,
+        onWhisper: (text, href) => setWhisper({ text, href }),
+      });
+      return true;
+    },
+    [addLog]
+  );
+
+  // Arm after load + idle so the agent never competes with LCP.
+  useEffect(() => {
+    if (localStorage.getItem("ab-agent-off") === "1") {
+      setDisabled(true);
+      return;
+    }
+    const arm = () => window.setTimeout(() => setArmed(true), 2500);
+    if (document.readyState === "complete") arm();
+    else window.addEventListener("load", arm, { once: true });
+  }, []);
+
+  // Observe + decide loop
+  useEffect(() => {
+    if (!armed || disabled) return;
+    const obs = new Observer((s) => addLog("signal", s));
+    observerRef.current = obs;
+    obs.start();
+    addLog("info", `agent armed · observing (${obs.isReturning ? "returning" : "first"} visit)`);
+
+    const tick = window.setInterval(async () => {
+      const summary = obs.summary(firedActions.current);
+
+      // Tier 1 — local rules
+      const hit = evaluateRules(summary, firedRules.current);
+      if (hit) {
+        firedRules.current.add(hit.rule);
+        addLog("info", `rule ${hit.rule} matched`);
+        runAction(hit.action, hit.rule);
+        return;
+      }
+
+      // Tier 2 — LLM director
+      if (
+        !directorBusy.current &&
+        shouldConsultDirector(summary, directorCalls.current, Date.now() - lastActionAt.current)
+      ) {
+        directorBusy.current = true;
+        directorCalls.current += 1;
+        addLog("director", `consulting director (call ${directorCalls.current}/2)…`);
+        try {
+          const res = await fetch("/api/director", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(summary),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const actions = sanitizeActions(data.actions);
+            if (data.reason) addLog("director", `reasoning: ${data.reason}`);
+            if (actions.length === 0) addLog("director", "decision: stay silent");
+            for (const a of actions) runAction(a, "director");
+          } else {
+            addLog("director", `director unavailable (${res.status}) — staying local`);
+          }
+        } catch {
+          addLog("director", "director unreachable — staying local");
+        } finally {
+          directorBusy.current = false;
+        }
+      }
+    }, TICK_MS);
+
+    return () => {
+      window.clearInterval(tick);
+      obs.stop();
+    };
+  }, [armed, disabled, addLog, runAction]);
+
+  // ~ toggles the console
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.key === "~" || e.key === "º" || e.key === "`") && !e.metaKey && !e.ctrlKey) {
+        const t = e.target as HTMLElement;
+        if (t.tagName === "INPUT" || t.tagName === "TEXTAREA") return;
+        setConsoleOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const kill = () => {
+    localStorage.setItem("ab-agent-off", "1");
+    setDisabled(true);
+    setConsoleOpen(false);
+    addLog("info", "agent disabled by visitor");
+  };
+  const revive = () => {
+    localStorage.removeItem("ab-agent-off");
+    window.location.reload();
+  };
+
+  if (!armed && !disabled) return null;
+
+  return (
+    <>
+      {/* status port */}
+      <button
+        aria-label="Agent console"
+        onClick={() => setConsoleOpen((o) => !o)}
+        className="fixed right-4 bottom-4 z-40 flex items-center gap-2 border border-line bg-bg/90 px-3 py-2 font-mono text-[10px] tracking-[0.14em] text-faint uppercase backdrop-blur transition-colors hover:border-accent hover:text-accent"
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${disabled ? "bg-faint" : "agent-dot bg-accent"}`} />
+        {disabled ? "Agent: off" : "Agent: observing"}
+      </button>
+
+      {/* contact affordance (revealed by rule R5 / director) */}
+      <a
+        hidden
+        data-agent-reveal="contact"
+        href="mailto:abouhlal@gmail.com"
+        className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 border border-accent bg-accent-soft px-4 py-2 font-mono text-[10px] tracking-[0.16em] text-accent uppercase backdrop-blur transition-colors hover:bg-accent hover:text-bg"
+      >
+        Email Amine →
+      </a>
+
+      {/* console hint (revealed by rule R4) */}
+      <p
+        hidden
+        data-agent-reveal="console-hint"
+        className="fixed right-4 bottom-14 z-40 border border-line-soft bg-bg/90 px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-faint backdrop-blur"
+      >
+        press <span className="text-accent">~</span> to see what the agent sees
+      </p>
+
+      {/* whisper */}
+      {whisper && (
+        <div className="agent-whisper fixed bottom-4 left-4 z-40 max-w-xs border border-line bg-surface/95 p-4 backdrop-blur">
+          <p className="font-mono text-[11px] leading-relaxed text-ink">{whisper.text}</p>
+          <div className="mt-2 flex gap-4 font-mono text-[10px] tracking-[0.14em] uppercase">
+            {whisper.href && (
+              <a href={whisper.href} className="text-accent hover:underline" onClick={() => setWhisper(null)}>
+                Go →
+              </a>
+            )}
+            <button onClick={() => setWhisper(null)} className="text-faint hover:text-ink">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* console */}
+      {consoleOpen && (
+        <div className="fixed right-4 bottom-14 z-50 flex max-h-[60vh] w-[min(26rem,calc(100vw-2rem))] flex-col border border-line bg-bg/95 backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-line px-4 py-2">
+            <p className="font-mono text-[10px] tracking-[0.2em] text-accent uppercase">
+              {"//"} Agent console
+            </p>
+            <div className="flex gap-3 font-mono text-[10px] uppercase">
+              {disabled ? (
+                <button onClick={revive} className="text-accent hover:underline">
+                  Enable
+                </button>
+              ) : (
+                <button onClick={kill} className="text-faint hover:text-ink">
+                  Disable agent
+                </button>
+              )}
+              <button onClick={() => setConsoleOpen(false)} className="text-faint hover:text-ink">
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="overflow-y-auto px-4 py-3 font-mono text-[10px] leading-relaxed">
+            <p className="mb-2 text-faint">
+              This site runs an ambient agent: it observes reading behaviour
+              (in this browser only), and responds with visual cues first,
+              words last. Log below — newest at the bottom.
+            </p>
+            {log.map((e, i) => (
+              <p key={i}>
+                <span className="text-faint">{e.t}</span>{" "}
+                <span
+                  className={
+                    e.kind === "action"
+                      ? "text-accent"
+                      : e.kind === "director"
+                        ? "text-ink"
+                        : "text-muted"
+                  }
+                >
+                  [{e.kind}]
+                </span>{" "}
+                <span className="text-muted">{e.text}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

@@ -119,12 +119,59 @@ body {
   letter-spacing: 0.14em;
 }
 
+/* --- ambient agent actuators ---------------------------------------- */
+
+.agent-highlight {
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+  box-shadow: 0 0 32px rgba(34, 211, 238, 0.14) inset;
+  transition: box-shadow 0.4s ease;
+}
+
+.agent-pulse-zone {
+  animation: agent-zone 1.2s ease-in-out 3;
+}
+
+@keyframes agent-zone {
+  50% {
+    box-shadow: 0 0 0 1px var(--color-accent), 0 0 24px rgba(34, 211, 238, 0.18);
+  }
+}
+
+.agent-guide {
+  position: fixed;
+  right: 6px;
+  top: 15vh;
+  height: 70vh;
+  width: 24px;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.agent-dot {
+  animation: d-pulse 2.4s ease-in-out infinite;
+}
+
+.agent-whisper,
+.agent-revealed {
+  animation: agent-in 0.35s ease;
+}
+
+@keyframes agent-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .d-flow,
-  .d-pulse {
+  .d-pulse,
+  .agent-dot,
+  .agent-pulse-zone {
     animation: none;
   }
 }
