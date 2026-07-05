@@ -44,8 +44,9 @@ function buildPrompt(summary: unknown): string {
     '- {"type":"guide","target":"<section id>"} — animated cue pointing toward a section',
     '- {"type":"reveal","target":"contact"} — show a floating email affordance',
     '- {"type":"whisper","text":"<max 90 chars>","href":"/<path>"} — ONE short line of text, only if a visual cue is insufficient. Write it in the visitor\'s language (see lang). Tone: calm, precise, no exclamation marks, no emoji.',
+    '- {"type":"speak","text":"<max 140 chars>"} — the agent says this aloud. Only if soundEnabled is true. Same tone; a touch of dry wit is welcome. English by default, or the visitor\'s language.',
     "",
-    "Principles: visual before verbal; never repeat an action type already in actionsAlreadyFired; if the visitor seems to be reading comfortably, do nothing.",
+    "Principles: visual before verbal; at most ONE verbal action (whisper OR speak) per response; never repeat an action type already in actionsAlreadyFired; if the visitor seems to be reading comfortably, do nothing.",
     "",
     `Behaviour summary: ${JSON.stringify(summary)}`,
     "",
@@ -104,7 +105,12 @@ export async function POST(req: NextRequest) {
     const text: string =
       data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
     const parsed = JSON.parse(text);
-    const actions = sanitizeActions(parsed.actions, 2);
+    let actions = sanitizeActions(parsed.actions, 2);
+    // Enforce: at most one verbal action per decision.
+    let verbal = 0;
+    actions = actions.filter((a) =>
+      a.type === "whisper" || a.type === "speak" ? verbal++ === 0 : true
+    );
     const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 200) : undefined;
     return NextResponse.json({ actions, reason });
   } catch (e) {

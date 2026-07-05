@@ -9,6 +9,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Observer } from "./observer";
 import { evaluateRules, shouldConsultDirector } from "./rules";
 import { applyAction } from "./actuators";
+import { runTour } from "./tour";
+import { canSpeak, speak } from "./voice";
 import { sanitizeActions, type AgentAction } from "./protocol";
 
 type LogEntry = { t: string; kind: "signal" | "action" | "info" | "director"; text: string };
@@ -21,8 +23,13 @@ export default function AmbientAgent() {
   const [disabled, setDisabled] = useState(false);
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [whisper, setWhisper] = useState<{ text: string; href?: string } | null>(null);
+  const [whisper, setWhisper] = useState<{ text: string; href?: string; tourOffer?: boolean } | null>(null);
+  const [soundOn, setSoundOn] = useState(true);
+  const [touring, setTouring] = useState(false);
 
+  const gestured = useRef(false);
+  const invited = useRef(false);
+  const tourOffered = useRef(false);
   const observerRef = useRef<Observer | null>(null);
   const firedRules = useRef(new Set<string>());
   const firedActions = useRef<string[]>([]);
@@ -35,6 +42,11 @@ export default function AmbientAgent() {
     setLog((l) => [...l.slice(-79), { t, kind, text }]);
   }, []);
 
+  const soundEnabled = useCallback(
+    () => soundOn && gestured.current && localStorage.getItem("ab-agent-mute") !== "1",
+    [soundOn]
+  );
+
   const runAction = useCallback(
     (action: AgentAction, source: string) => {
       const now = Date.now();
@@ -45,11 +57,45 @@ export default function AmbientAgent() {
         log: (k, text) => addLog(k, text),
         reducedMotion: observerRef.current?.reducedMotion ?? false,
         onWhisper: (text, href) => setWhisper({ text, href }),
+        soundEnabled: soundEnabled(),
       });
       return true;
     },
-    [addLog]
+    [addLog, soundEnabled]
   );
+
+  // First user gesture unlocks audio (browser autoplay policy).
+  useEffect(() => {
+    const onGesture = () => {
+      gestured.current = true;
+    };
+    window.addEventListener("pointerdown", onGesture, { once: true, passive: true });
+    window.addEventListener("keydown", onGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+    };
+  }, []);
+
+  // Ignored whispers retreat on their own.
+  useEffect(() => {
+    if (!whisper) return;
+    const t = window.setTimeout(() => setWhisper(null), whisper.tourOffer ? 18_000 : 12_000);
+    return () => window.clearTimeout(t);
+  }, [whisper]);
+
+  const startTour = useCallback(() => {
+    if (touring) return;
+    setWhisper(null);
+    setConsoleOpen(false);
+    setTouring(true);
+    void runTour({
+      log: addLog,
+      onWhisper: (text, href) => setWhisper({ text, href }),
+      soundEnabled,
+      reducedMotion: observerRef.current?.reducedMotion ?? false,
+    }).finally(() => setTouring(false));
+  }, [touring, addLog, soundEnabled]);
 
   // Arm after load + idle so the agent never competes with LCP.
   useEffect(() => {
@@ -65,13 +111,37 @@ export default function AmbientAgent() {
   // Observe + decide loop
   useEffect(() => {
     if (!armed || disabled) return;
-    const obs = new Observer((s) => addLog("signal", s));
+    const obs = new Observer(
+      (s) => addLog("signal", s),
+      (slug) => {
+        // Spoken invitation the first time the flagship case enters the viewport.
+        if (slug !== "multi-agent-service-desk" || invited.current || touring) return;
+        invited.current = true;
+        const text = "Want to know more about the agentic A I project? Press tilde to meet the agent behind this site.";
+        if (soundEnabled() && canSpeak()) {
+          addLog("action", "speak(invitation)");
+          void speak(text);
+          setWhisper({ text: "Curious? The full case study →", href: "/work/multi-agent-service-desk" });
+        } else {
+          setWhisper({ text: "Want the story behind the agentic-AI project? →", href: "/work/multi-agent-service-desk" });
+        }
+      }
+    );
     observerRef.current = obs;
     obs.start();
     addLog("info", `agent armed · observing (${obs.isReturning ? "returning" : "first"} visit)`);
 
     const tick = window.setInterval(async () => {
-      const summary = obs.summary(firedActions.current);
+      if (touring) return; // the tour has the floor
+      const summary = obs.summary(firedActions.current, soundEnabled());
+
+      // Offer the guided tour once, to engaged first-time visitors.
+      if (!tourOffered.current && summary.secondsOnPage >= 25 && summary.maxScrollPct >= 15) {
+        tourOffered.current = true;
+        addLog("info", "offering guided tour");
+        setWhisper({ text: "Sixty seconds. I drive, you watch. Guided tour?", tourOffer: true });
+        return;
+      }
 
       // Tier 1 — local rules
       const hit = evaluateRules(summary, firedRules.current);
@@ -117,7 +187,7 @@ export default function AmbientAgent() {
       window.clearInterval(tick);
       obs.stop();
     };
-  }, [armed, disabled, addLog, runAction]);
+  }, [armed, disabled, touring, addLog, runAction, soundEnabled]);
 
   // ~ toggles the console
   useEffect(() => {
@@ -151,15 +221,29 @@ export default function AmbientAgent() {
 
   return (
     <>
-      {/* status port */}
-      <button
-        aria-label="Agent console"
-        onClick={() => setConsoleOpen((o) => !o)}
-        className="fixed right-4 bottom-4 z-40 flex items-center gap-2 border border-line bg-bg/90 px-3 py-2 font-mono text-[10px] tracking-[0.14em] text-faint uppercase backdrop-blur transition-colors hover:border-accent hover:text-accent"
-      >
-        <span className={`h-1.5 w-1.5 rounded-full ${disabled ? "bg-faint" : "agent-dot bg-accent"}`} />
-        {disabled ? "Agent: off" : "Agent: observing"}
-      </button>
+      {/* status port + sound toggle */}
+      <div className="fixed right-4 bottom-4 z-40 flex items-stretch gap-px border border-line bg-bg/90 backdrop-blur">
+        <button
+          aria-label="Agent console"
+          onClick={() => setConsoleOpen((o) => !o)}
+          className="flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.14em] text-faint uppercase transition-colors hover:text-accent"
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${disabled ? "bg-faint" : touring ? "bg-accent" : "agent-dot bg-accent"}`} />
+          {disabled ? "Agent: off" : touring ? "Agent: driving" : "Agent: observing"}
+        </button>
+        <button
+          aria-label={soundOn ? "Mute agent voice" : "Enable agent voice"}
+          onClick={() => {
+            const next = !soundOn;
+            setSoundOn(next);
+            localStorage.setItem("ab-agent-mute", next ? "0" : "1");
+            addLog("info", next ? "voice on" : "voice muted");
+          }}
+          className="border-l border-line px-2.5 font-mono text-[11px] text-faint transition-colors hover:text-accent"
+        >
+          {soundOn ? "◉))" : "◉ x"}
+        </button>
+      </div>
 
       {/* contact affordance (revealed by rule R5 / director) */}
       <a
@@ -186,6 +270,11 @@ export default function AmbientAgent() {
         <div className="agent-whisper fixed bottom-4 left-4 z-40 max-w-xs border border-line bg-surface/95 p-4 backdrop-blur">
           <p className="font-mono text-[11px] leading-relaxed text-ink">{whisper.text}</p>
           <div className="mt-2 flex gap-4 font-mono text-[10px] tracking-[0.14em] uppercase">
+            {whisper.tourOffer && (
+              <button onClick={startTour} className="text-accent hover:underline">
+                ▶ Start tour
+              </button>
+            )}
             {whisper.href && (
               <a href={whisper.href} className="text-accent hover:underline" onClick={() => setWhisper(null)}>
                 Go →
@@ -206,6 +295,11 @@ export default function AmbientAgent() {
               {"//"} Agent console
             </p>
             <div className="flex gap-3 font-mono text-[10px] uppercase">
+              {!disabled && !touring && (
+                <button onClick={startTour} className="text-accent hover:underline">
+                  ▶ Tour
+                </button>
+              )}
               {disabled ? (
                 <button onClick={revive} className="text-accent hover:underline">
                   Enable

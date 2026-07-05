@@ -3,6 +3,7 @@
 // nothing is removed from the page, everything degrades to no-op.
 
 import type { AgentAction } from "./protocol";
+import { canSpeak, speak } from "./voice";
 
 type LogFn = (kind: "action" | "info", text: string) => void;
 
@@ -62,6 +63,22 @@ function reveal(target: "contact" | "console-hint", log: LogFn) {
   node.hidden = false;
   node.classList.add("agent-revealed");
   log("action", `reveal(${target})`);
+  // Ignored stimuli retreat: if the visitor never interacts, fade back out.
+  let touched = false;
+  const touch = () => {
+    touched = true;
+  };
+  node.addEventListener("pointerenter", touch, { once: true });
+  node.addEventListener("focus", touch, { once: true });
+  window.setTimeout(() => {
+    if (touched) return;
+    node.classList.add("agent-fading");
+    window.setTimeout(() => {
+      node.hidden = true;
+      node.classList.remove("agent-revealed", "agent-fading");
+      log("action", `retract(${target}) — ignored`);
+    }, 700);
+  }, 20_000);
 }
 
 function recolor(mode: "cool" | "warm", log: LogFn) {
@@ -78,9 +95,20 @@ export function applyAction(
     log: LogFn;
     reducedMotion: boolean;
     onWhisper: (text: string, href?: string) => void;
+    soundEnabled?: boolean;
   }
 ) {
   switch (action.type) {
+    case "speak":
+      if (opts.soundEnabled && canSpeak()) {
+        opts.log("action", `speak("${action.text}")`);
+        void speak(action.text);
+      } else {
+        // No sound? The voice degrades to a whisper.
+        opts.log("action", `speak→whisper("${action.text}")`);
+        opts.onWhisper(action.text);
+      }
+      return;
     case "highlight":
       return highlight(action.target, opts.log);
     case "pulse":

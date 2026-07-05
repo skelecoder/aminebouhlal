@@ -9,7 +9,8 @@ export type AgentAction =
   | { type: "guide"; target: string } // section id — draws a current + smooth-scrolls hint
   | { type: "reveal"; target: "contact" | "console-hint" }
   | { type: "recolor"; mode: "cool" | "warm" }
-  | { type: "whisper"; text: string; href?: string };
+  | { type: "whisper"; text: string; href?: string }
+  | { type: "speak"; text: string };
 
 export const SECTION_IDS = [
   "work",
@@ -53,6 +54,8 @@ export function isValidAction(a: unknown): a is AgentAction {
         (x.href === undefined ||
           (typeof x.href === "string" && x.href.startsWith("/")))
       );
+    case "speak":
+      return typeof x.text === "string" && x.text.length > 0 && x.text.length <= 160;
     default:
       return false;
   }
@@ -75,5 +78,6 @@ export type BehaviorSummary = {
   lang: string; // navigator.language, 2 letters
   isReturning: boolean;
   reducedMotion: boolean;
+  soundEnabled: boolean; // visitor gesture happened and sound is on
   actionsAlreadyFired: string[]; // action types already used this session
 };

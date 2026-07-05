@@ -17,7 +17,13 @@ export class Observer {
   readonly reducedMotion: boolean;
   readonly isReturning: boolean;
 
-  constructor(private onSignal: (text: string) => void) {
+  private cardsSeen = new Set<string>();
+  private cardIo?: IntersectionObserver;
+
+  constructor(
+    private onSignal: (text: string) => void,
+    private onCardSeen?: (slug: string) => void
+  ) {
     this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.isReturning = localStorage.getItem("ab-agent-seen") === "1";
     localStorage.setItem("ab-agent-seen", "1");
@@ -46,6 +52,24 @@ export class Observer {
       const node = document.getElementById(id);
       if (node) this.io.observe(node);
     }
+
+    // Case cards entering the viewport (for spoken/visual invitations)
+    this.cardIo = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          const slug = (e.target as HTMLElement).dataset.agentCard;
+          if (e.isIntersecting && slug && !this.cardsSeen.has(slug)) {
+            this.cardsSeen.add(slug);
+            this.onSignal(`inView(${slug})`);
+            this.onCardSeen?.(slug);
+          }
+        }
+      },
+      { threshold: 0.6 }
+    );
+    document
+      .querySelectorAll<HTMLElement>("[data-agent-card]")
+      .forEach((n) => this.cardIo!.observe(n));
 
     // Scroll depth
     const onScroll = () => {
@@ -80,6 +104,7 @@ export class Observer {
 
   stop() {
     this.io?.disconnect();
+    this.cardIo?.disconnect();
     this.cleanup.forEach((fn) => fn());
   }
 
@@ -101,8 +126,9 @@ export class Observer {
     return "other";
   }
 
-  summary(actionsAlreadyFired: string[]): BehaviorSummary {
+  summary(actionsAlreadyFired: string[], soundEnabled = false): BehaviorSummary {
     return {
+      soundEnabled,
       secondsOnPage: Math.round((Date.now() - this.startedAt) / 1000),
       maxScrollPct: this.maxScrollPct,
       dwellBySection: this.settledDwell(),
