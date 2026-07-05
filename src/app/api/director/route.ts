@@ -107,8 +107,9 @@ export async function POST(req: NextRequest) {
     const actions = sanitizeActions(parsed.actions, 2);
     const reason = typeof parsed.reason === "string" ? parsed.reason.slice(0, 200) : undefined;
     return NextResponse.json({ actions, reason });
-  } catch {
+  } catch (e) {
     // The agent degrades to silence, never to an error the visitor can see.
+    console.error("director error:", e instanceof Error ? `${e.name}: ${e.message}` : e);
     return NextResponse.json({ actions: [] }, { status: 200 });
   }
 }
