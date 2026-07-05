@@ -1,26 +1,23 @@
 "use client";
 
-// The ambient agent: observes silently, acts visually, speaks last.
-// Press ~ (or click the status port) to open the console and watch it think.
-// Everything it observes stays in this browser; only an anonymous behaviour
-// summary is sent if the LLM director is consulted. Kill switch included.
+// Ambient agent v3 — moment-consciousness.
+// Perception (event bus) → salience gate → moment-director (LLM) → expression.
+// Nothing it says is canned: every utterance is generated for this visitor,
+// this instant, in their language. Discreet by design: silence is the default,
+// and being ignored teaches it to be quieter. Press ~ to watch it think.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Observer } from "./observer";
-import { evaluateRules, shouldConsultDirector } from "./rules";
+import { SalienceGate } from "./salience";
 import { applyAction } from "./actuators";
 import { runTour } from "./tour";
 import { canSpeak, speak } from "./voice";
 import { startReactive } from "./reactive";
 import { attachQuips } from "./quips";
-import { sanitizeActions, type AgentAction } from "./protocol";
+import type { DirectorDecision } from "./protocol";
+import { sanitizeActions } from "./protocol";
 
 type LogEntry = { t: string; kind: "signal" | "action" | "info" | "director"; text: string };
-
-const TICK_MS = 5000;
-const MIN_ACTION_GAP_MS = 10_000;
-const INVITATION =
-  "Want to know more about the agentic A I project? Press tilde to meet the agent behind this site.";
 
 export default function AmbientAgent() {
   const [armed, setArmed] = useState(false);
@@ -30,19 +27,18 @@ export default function AmbientAgent() {
   const [whisper, setWhisper] = useState<{ text: string; href?: string; tourOffer?: boolean } | null>(null);
   const [quip, setQuip] = useState<{ text: string; x: number; y: number } | null>(null);
   const [ticker, setTicker] = useState("");
+  const [gateView, setGateView] = useState("");
   const [soundOn, setSoundOn] = useState(true);
   const [touring, setTouring] = useState(false);
 
   const gestured = useRef(false);
-  const invited = useRef(false);
-  const pendingInvite = useRef(false);
-  const tourOffered = useRef(false);
   const observerRef = useRef<Observer | null>(null);
-  const firedRules = useRef(new Set<string>());
-  const firedActions = useRef<string[]>([]);
-  const lastActionAt = useRef(0);
-  const directorCalls = useRef(0);
+  const gate = useRef(new SalienceGate());
+  const said = useRef<string[]>([]);
   const directorBusy = useRef(false);
+  const whisperEngaged = useRef(false);
+  const tourOffered = useRef(false);
+  const touringRef = useRef(false);
 
   const addLog = useCallback((kind: LogEntry["kind"], text: string) => {
     const t = new Date().toTimeString().slice(0, 8);
@@ -54,22 +50,69 @@ export default function AmbientAgent() {
     [soundOn]
   );
 
-  const runAction = useCallback(
-    (action: AgentAction, source: string) => {
-      const now = Date.now();
-      if (now - lastActionAt.current < MIN_ACTION_GAP_MS) return false;
-      lastActionAt.current = now;
-      firedActions.current.push(`${action.type}:${source}`);
-      applyAction(action, {
-        log: (k, text) => addLog(k, text),
-        reducedMotion: observerRef.current?.reducedMotion ?? false,
-        onWhisper: (text, href) => setWhisper({ text, href }),
-        soundEnabled: soundEnabled(),
-      });
-      return true;
+  // The single path from a salient moment to an intervention.
+  const consultDirector = useCallback(
+    async (trigger: string) => {
+      const obs = observerRef.current;
+      if (!obs || directorBusy.current || touringRef.current) return;
+      directorBusy.current = true;
+      addLog("director", `moment sent (${trigger})`);
+      try {
+        const res = await fetch("/api/director", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moment: obs.moment(said.current),
+            lang: obs.lang(),
+            soundEnabled: soundEnabled(),
+          }),
+        });
+        if (!res.ok) {
+          addLog("director", `unavailable (${res.status})`);
+          return;
+        }
+        const d: DirectorDecision = await res.json();
+        if (d.reason) addLog("director", `${d.mood}: ${d.reason}`);
+        if (d.mood === "silent") return;
+        if (d.topic) said.current = [...said.current.slice(-11), d.topic];
+
+        for (const a of sanitizeActions(d.actions, 2)) {
+          applyAction(a, {
+            log: addLog,
+            reducedMotion: obs.reducedMotion,
+            onWhisper: (text, href) => setWhisper({ text, href }),
+          });
+        }
+        if (d.utterance) {
+          if (soundEnabled() && canSpeak()) {
+            addLog("action", `say("${d.utterance}")`);
+            void speak(d.utterance);
+            if (d.href) setWhisper({ text: d.utterance, href: d.href });
+          } else {
+            addLog("action", `whisper("${d.utterance}")`);
+            whisperEngaged.current = false;
+            setWhisper({ text: d.utterance, href: d.href });
+          }
+        }
+      } catch {
+        addLog("director", "unreachable — staying quiet");
+      } finally {
+        directorBusy.current = false;
+      }
     },
     [addLog, soundEnabled]
   );
+
+  // Arm after load + idle so the agent never competes with LCP.
+  useEffect(() => {
+    if (localStorage.getItem("ab-agent-off") === "1") {
+      setDisabled(true);
+      return;
+    }
+    const arm = () => window.setTimeout(() => setArmed(true), 2500);
+    if (document.readyState === "complete") arm();
+    else window.addEventListener("load", arm, { once: true });
+  }, []);
 
   // First user gesture unlocks audio (browser autoplay policy).
   useEffect(() => {
@@ -84,69 +127,75 @@ export default function AmbientAgent() {
     };
   }, []);
 
-  // Ignored whispers retreat on their own.
+  // Ignored whispers retract on their own — and teach the gate.
   useEffect(() => {
     if (!whisper) return;
-    const t = window.setTimeout(() => setWhisper(null), whisper.tourOffer ? 18_000 : 12_000);
+    whisperEngaged.current = false;
+    const t = window.setTimeout(() => {
+      setWhisper(null);
+      if (!whisperEngaged.current) gate.current.ignored();
+    }, whisper.tourOffer ? 18_000 : 9_000);
     return () => window.clearTimeout(t);
   }, [whisper]);
 
   const startTour = useCallback(() => {
-    if (touring) return;
+    const obs = observerRef.current;
+    if (!obs || touringRef.current) return;
+    whisperEngaged.current = true;
+    gate.current.rewarded();
     setWhisper(null);
     setConsoleOpen(false);
     setTouring(true);
+    touringRef.current = true;
+    gate.current.directorCalls += 1; // the script generation counts
     void runTour({
       log: addLog,
       onWhisper: (text, href) => setWhisper({ text, href }),
       soundEnabled,
-      reducedMotion: observerRef.current?.reducedMotion ?? false,
-    }).finally(() => setTouring(false));
-  }, [touring, addLog, soundEnabled]);
+      reducedMotion: obs.reducedMotion,
+      moment: () => obs.moment(said.current),
+      lang: obs.lang(),
+    }).finally(() => {
+      setTouring(false);
+      touringRef.current = false;
+    });
+  }, [addLog, soundEnabled]);
 
-  // Arm after load + idle so the agent never competes with LCP.
-  useEffect(() => {
-    if (localStorage.getItem("ab-agent-off") === "1") {
-      setDisabled(true);
-      return;
-    }
-    const arm = () => window.setTimeout(() => setArmed(true), 2500);
-    if (document.readyState === "complete") arm();
-    else window.addEventListener("load", arm, { once: true });
-  }, []);
-
-  // Observe + decide loop
+  // Perception loop
   useEffect(() => {
     if (!armed || disabled) return;
-    const obs = new Observer(
-      (s) => addLog("signal", s),
-      (slug) => {
-        // Spoken invitation the first time the flagship case enters the viewport.
-        if (slug !== "multi-agent-service-desk" || invited.current || touring) return;
-        if (soundEnabled() && canSpeak()) {
-          invited.current = true;
-          addLog("action", "speak(invitation)");
-          void speak(INVITATION);
-          setWhisper({ text: "Curious? The full case study →", href: "/work/multi-agent-service-desk" });
-        } else {
-          // No gesture yet → the browser won't let us speak. Park the
-          // invitation and hint at the voice instead of wasting the moment.
-          pendingInvite.current = true;
-          addLog("info", "invitation parked (no audio unlock yet)");
-          setWhisper({ text: "The agent can talk. Click anywhere, voice comes online." });
-        }
+    const obs = new Observer((e) => {
+      const bits = [e.kind, e.target, e.value !== undefined ? String(e.value) : null]
+        .filter(Boolean)
+        .join(":");
+      addLog("signal", bits);
+      if (touringRef.current) return;
+      if (gate.current.push(e)) void consultDirector(`salience:${e.kind}`);
+      setGateView(() => {
+        const s = gate.current.snapshot();
+        return `charge ${s.charge}/${s.threshold} · calls ${s.calls}/12`;
+      });
+
+      // One-time tour offer, only for engaged first-timers, only once.
+      if (
+        !tourOffered.current &&
+        e.kind === "stillness" &&
+        (e.value ?? 0) >= 20 &&
+        !obs.isReturning
+      ) {
+        tourOffered.current = true;
+        addLog("info", "offering guided tour");
+        setWhisper({ text: "", tourOffer: true });
       }
-    );
+    });
     observerRef.current = obs;
     obs.start();
-    addLog("info", `agent armed · observing (${obs.isReturning ? "returning" : "first"} visit)`);
+    addLog("info", `agent v3 armed · ${obs.isReturning ? "returning" : "first"} visit · discreet mode`);
 
-    // 0ms layer: cursor port, ripples, scroll current, hover life.
     const reactive = startReactive(obs.reducedMotion);
 
-    // Hover whisperer: streamed quips next to the cursor. Gone in 5s if ignored.
     let quipTimer = 0;
-    const detachQuips = attachQuips((navigator.language || "en").slice(0, 2), {
+    const detachQuips = attachQuips(obs.lang(), {
       onStart: (target, x, y) => {
         window.clearTimeout(quipTimer);
         setQuip({ text: "", x: Math.min(x, window.innerWidth - 280), y: Math.min(y + 24, window.innerHeight - 80) });
@@ -158,96 +207,24 @@ export default function AmbientAgent() {
       log: (text) => addLog("director", text),
     });
 
-    // Live ticker: proof of life, every second.
     const tickerInterval = window.setInterval(() => {
-      const s = obs.summary(firedActions.current, false);
-      const dwellTop = Object.entries(s.dwellBySection).sort((a, b) => b[1] - a[1])[0];
-      const frames = [
-        `t+${s.secondsOnPage}s`,
-        `depth ${s.maxScrollPct}%`,
-        dwellTop ? `${dwellTop[0]} ${dwellTop[1]}s` : "surface",
-        `${s.cardsHovered.length} traces`,
-      ];
-      setTicker(frames[s.secondsOnPage % frames.length]);
+      const s = obs.stats();
+      const frames = [`t+${s.seconds}s`, `depth ${s.depth}%`, s.top ?? "surface", `${s.events} events`];
+      setTicker(frames[s.seconds % frames.length]);
     }, 1000);
 
-    const tick = window.setInterval(async () => {
-      if (touring) return; // the tour has the floor
-      const summary = obs.summary(firedActions.current, soundEnabled());
-
-      // A parked invitation speaks as soon as audio is unlocked.
-      if (pendingInvite.current && !invited.current && soundEnabled() && canSpeak()) {
-        pendingInvite.current = false;
-        invited.current = true;
-        addLog("action", "speak(invitation)");
-        void speak(INVITATION);
-        setWhisper({ text: "Curious? The full case study →", href: "/work/multi-agent-service-desk" });
-        return;
-      }
-
-      // Offer the guided tour once, to engaged first-time visitors.
-      if (!tourOffered.current && summary.secondsOnPage >= 25 && summary.maxScrollPct >= 15) {
-        tourOffered.current = true;
-        addLog("info", "offering guided tour");
-        setWhisper({ text: "Sixty seconds. I drive, you watch. Guided tour?", tourOffer: true });
-        return;
-      }
-
-      // Tier 1 — local rules
-      const hit = evaluateRules(summary, firedRules.current);
-      if (hit) {
-        firedRules.current.add(hit.rule);
-        addLog("info", `rule ${hit.rule} matched`);
-        runAction(hit.action, hit.rule);
-        return;
-      }
-
-      // Tier 2 — LLM director
-      if (
-        !directorBusy.current &&
-        shouldConsultDirector(summary, directorCalls.current, Date.now() - lastActionAt.current)
-      ) {
-        directorBusy.current = true;
-        directorCalls.current += 1;
-        addLog("director", `consulting director (call ${directorCalls.current}/2)…`);
-        try {
-          const res = await fetch("/api/director", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(summary),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const actions = sanitizeActions(data.actions);
-            if (data.reason) addLog("director", `reasoning: ${data.reason}`);
-            if (actions.length === 0) addLog("director", "decision: stay silent");
-            for (const a of actions) runAction(a, "director");
-          } else {
-            addLog("director", `director unavailable (${res.status}) — staying local`);
-          }
-        } catch {
-          addLog("director", "director unreachable — staying local");
-        } finally {
-          directorBusy.current = false;
-        }
-      }
-    }, TICK_MS);
-
     return () => {
-      window.clearInterval(tick);
       window.clearInterval(tickerInterval);
       window.clearTimeout(quipTimer);
       detachQuips();
       reactive.destroy();
       obs.stop();
     };
-  }, [armed, disabled, touring, addLog, runAction, soundEnabled]);
+  }, [armed, disabled, addLog, consultDirector]);
 
-  // ~ toggles the console
+  // ~ toggles the console (US/ES layouts + AZERTY AltGr dead key)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // "~" arrives differently per layout: direct on US/ES, AltGr+é dead key
-      // on French AZERTY (Windows reports AltGr as ctrl+alt, key = "Dead").
       const direct = (e.key === "~" || e.key === "º" || e.key === "`") && !e.metaKey && (!e.ctrlKey || e.altKey);
       const deadTilde = e.key === "Dead" && e.altKey;
       if (direct || deadTilde) {
@@ -292,10 +269,11 @@ export default function AmbientAgent() {
             setSoundOn(next);
             localStorage.setItem("ab-agent-mute", next ? "0" : "1");
             addLog("info", next ? "voice on" : "voice muted");
-            if (next && canSpeak()) {
-              // The click itself unlocks audio — prove the voice exists.
+            if (next) {
               gestured.current = true;
-              void speak("Voice online. I'm the resident agent. Scroll, and I'll point out what matters.");
+              observerRef.current?.note("sound");
+              gate.current.directorCalls += 1;
+              void consultDirector("sound-enabled");
             }
           }}
           className="border-l border-line px-2.5 font-mono text-[11px] text-faint transition-colors hover:text-accent"
@@ -304,7 +282,7 @@ export default function AmbientAgent() {
         </button>
       </div>
 
-      {/* contact affordance (revealed by rule R5 / director) */}
+      {/* contact affordance (revealed by the director) */}
       <a
         hidden
         data-agent-reveal="contact"
@@ -314,7 +292,7 @@ export default function AmbientAgent() {
         Email Amine →
       </a>
 
-      {/* console hint (revealed by rule R4) */}
+      {/* console hint */}
       <button
         hidden
         data-agent-reveal="console-hint"
@@ -334,10 +312,12 @@ export default function AmbientAgent() {
         </p>
       )}
 
-      {/* whisper */}
-      {whisper && (
+      {/* whisper / tour offer */}
+      {whisper && (whisper.text || whisper.tourOffer) && (
         <div className="agent-whisper fixed bottom-4 left-4 z-40 max-w-xs border border-line bg-surface/95 p-4 backdrop-blur">
-          <p className="font-mono text-[11px] leading-relaxed text-ink">{whisper.text}</p>
+          <p className="font-mono text-[11px] leading-relaxed text-ink">
+            {whisper.text || "I can drive for a minute, if you like."}
+          </p>
           <div className="mt-2 flex gap-4 font-mono text-[10px] tracking-[0.14em] uppercase">
             {whisper.tourOffer && (
               <button onClick={startTour} className="text-accent hover:underline">
@@ -345,7 +325,15 @@ export default function AmbientAgent() {
               </button>
             )}
             {whisper.href && (
-              <a href={whisper.href} className="text-accent hover:underline" onClick={() => setWhisper(null)}>
+              <a
+                href={whisper.href}
+                className="text-accent hover:underline"
+                onClick={() => {
+                  whisperEngaged.current = true;
+                  gate.current.rewarded();
+                  setWhisper(null);
+                }}
+              >
                 Go →
               </a>
             )}
@@ -384,11 +372,12 @@ export default function AmbientAgent() {
             </div>
           </div>
           <div className="overflow-y-auto px-4 py-3 font-mono text-[10px] leading-relaxed">
-            <p className="mb-2 text-faint">
-              This site runs an ambient agent: it observes reading behaviour
-              (in this browser only), and responds with visual cues first,
-              words last. Log below — newest at the bottom.
+            <p className="mb-1 text-faint">
+              Moment-conscious agent: it watches this session (in your browser
+              only), wakes its director when a moment is salient, and generates
+              every word fresh. Ignoring it makes it quieter.
             </p>
+            {gateView && <p className="mb-2 text-accent/70">{gateView}</p>}
             {log.map((e, i) => (
               <p key={i}>
                 <span className="text-faint">{e.t}</span>{" "}

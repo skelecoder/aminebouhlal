@@ -9,8 +9,7 @@ export type AgentAction =
   | { type: "guide"; target: string } // section id — draws a current + smooth-scrolls hint
   | { type: "reveal"; target: "contact" | "console-hint" }
   | { type: "recolor"; mode: "cool" | "warm" }
-  | { type: "whisper"; text: string; href?: string }
-  | { type: "speak"; text: string };
+  | { type: "whisper"; text: string; href?: string };
 
 export const SECTION_IDS = [
   "work",
@@ -54,8 +53,6 @@ export function isValidAction(a: unknown): a is AgentAction {
         (x.href === undefined ||
           (typeof x.href === "string" && x.href.startsWith("/")))
       );
-    case "speak":
-      return typeof x.text === "string" && x.text.length > 0 && x.text.length <= 160;
     default:
       return false;
   }
@@ -66,18 +63,13 @@ export function sanitizeActions(raw: unknown, max = 3): AgentAction[] {
   return raw.filter(isValidAction).slice(0, max) as AgentAction[];
 }
 
-// Behaviour summary sent to the LLM director (Tier 2). Anonymous by design:
-// no identifiers, no coordinates, no free text from the visitor.
-export type BehaviorSummary = {
-  secondsOnPage: number;
-  maxScrollPct: number;
-  dwellBySection: Record<string, number>; // seconds, only sections seen
-  cardsHovered: string[]; // slugs
-  cardsClicked: string[];
-  cameFrom: "linkedin" | "google" | "direct" | "other";
-  lang: string; // navigator.language, 2 letters
-  isReturning: boolean;
-  reducedMotion: boolean;
-  soundEnabled: boolean; // visitor gesture happened and sound is on
-  actionsAlreadyFired: string[]; // action types already used this session
+// The director's decision for a moment. Every string in it is generated
+// server-side for this exact visitor and instant — nothing canned.
+export type DirectorDecision = {
+  mood: "silent" | "nudge" | "speak";
+  reason?: string;
+  topic?: string;
+  actions: AgentAction[];
+  utterance?: string;
+  href?: string;
 };

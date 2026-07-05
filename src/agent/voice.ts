@@ -4,7 +4,7 @@
 
 let playing = false;
 let spoken = 0;
-const MAX_PER_SESSION = 3;
+const MAX_PER_SESSION = 4;
 
 export function canSpeak(): boolean {
   return spoken < MAX_PER_SESSION && !playing;

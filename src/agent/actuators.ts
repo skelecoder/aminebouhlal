@@ -3,7 +3,6 @@
 // nothing is removed from the page, everything degrades to no-op.
 
 import type { AgentAction } from "./protocol";
-import { canSpeak, speak } from "./voice";
 
 type LogFn = (kind: "action" | "info", text: string) => void;
 
@@ -95,20 +94,9 @@ export function applyAction(
     log: LogFn;
     reducedMotion: boolean;
     onWhisper: (text: string, href?: string) => void;
-    soundEnabled?: boolean;
   }
 ) {
   switch (action.type) {
-    case "speak":
-      if (opts.soundEnabled && canSpeak()) {
-        opts.log("action", `speak("${action.text}")`);
-        void speak(action.text);
-      } else {
-        // No sound? The voice degrades to a whisper.
-        opts.log("action", `speak→whisper("${action.text}")`);
-        opts.onWhisper(action.text);
-      }
-      return;
     case "highlight":
       return highlight(action.target, opts.log);
     case "pulse":
