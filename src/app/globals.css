@@ -162,6 +162,63 @@ body {
   transition: opacity 0.7s ease;
 }
 
+/* --- the 0ms reactive layer ------------------------------------------ */
+
+.agent-reactive-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.agent-topcurrent {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  z-index: 55;
+  pointer-events: none;
+  background-image: linear-gradient(
+    90deg,
+    var(--color-accent) 0 6px,
+    transparent 6px 14px
+  );
+  background-size: 14px 2px;
+  animation: topcurrent var(--speed, 2s) linear infinite;
+  opacity: 0.85;
+}
+
+@keyframes topcurrent {
+  to {
+    background-position-x: 14px;
+  }
+}
+
+.agent-hover-live {
+  transition: box-shadow 0.15s ease;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35), 0 0 18px rgba(34, 211, 238, 0.06) inset;
+}
+
+.agent-quip {
+  position: fixed;
+  z-index: 70;
+  max-width: 260px;
+  pointer-events: none;
+  animation: agent-in 0.2s ease;
+}
+
+.agent-quip::before {
+  content: "◉ ";
+  color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-topcurrent {
+    animation: none;
+  }
+}
+
 @keyframes agent-in {
   from {
     opacity: 0;

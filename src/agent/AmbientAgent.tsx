@@ -11,6 +11,8 @@ import { evaluateRules, shouldConsultDirector } from "./rules";
 import { applyAction } from "./actuators";
 import { runTour } from "./tour";
 import { canSpeak, speak } from "./voice";
+import { startReactive } from "./reactive";
+import { attachQuips } from "./quips";
 import { sanitizeActions, type AgentAction } from "./protocol";
 
 type LogEntry = { t: string; kind: "signal" | "action" | "info" | "director"; text: string };
@@ -26,6 +28,8 @@ export default function AmbientAgent() {
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [whisper, setWhisper] = useState<{ text: string; href?: string; tourOffer?: boolean } | null>(null);
+  const [quip, setQuip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [ticker, setTicker] = useState("");
   const [soundOn, setSoundOn] = useState(true);
   const [touring, setTouring] = useState(false);
 
@@ -137,6 +141,36 @@ export default function AmbientAgent() {
     obs.start();
     addLog("info", `agent armed · observing (${obs.isReturning ? "returning" : "first"} visit)`);
 
+    // 0ms layer: cursor port, ripples, scroll current, hover life.
+    const reactive = startReactive(obs.reducedMotion);
+
+    // Hover whisperer: streamed quips next to the cursor. Gone in 5s if ignored.
+    let quipTimer = 0;
+    const detachQuips = attachQuips((navigator.language || "en").slice(0, 2), {
+      onStart: (target, x, y) => {
+        window.clearTimeout(quipTimer);
+        setQuip({ text: "", x: Math.min(x, window.innerWidth - 280), y: Math.min(y + 24, window.innerHeight - 80) });
+      },
+      onDelta: (text) => setQuip((q) => (q ? { ...q, text: q.text + text } : q)),
+      onDone: () => {
+        quipTimer = window.setTimeout(() => setQuip(null), 5000);
+      },
+      log: (text) => addLog("director", text),
+    });
+
+    // Live ticker: proof of life, every second.
+    const tickerInterval = window.setInterval(() => {
+      const s = obs.summary(firedActions.current, false);
+      const dwellTop = Object.entries(s.dwellBySection).sort((a, b) => b[1] - a[1])[0];
+      const frames = [
+        `t+${s.secondsOnPage}s`,
+        `depth ${s.maxScrollPct}%`,
+        dwellTop ? `${dwellTop[0]} ${dwellTop[1]}s` : "surface",
+        `${s.cardsHovered.length} traces`,
+      ];
+      setTicker(frames[s.secondsOnPage % frames.length]);
+    }, 1000);
+
     const tick = window.setInterval(async () => {
       if (touring) return; // the tour has the floor
       const summary = obs.summary(firedActions.current, soundEnabled());
@@ -201,6 +235,10 @@ export default function AmbientAgent() {
 
     return () => {
       window.clearInterval(tick);
+      window.clearInterval(tickerInterval);
+      window.clearTimeout(quipTimer);
+      detachQuips();
+      reactive.destroy();
       obs.stop();
     };
   }, [armed, disabled, touring, addLog, runAction, soundEnabled]);
@@ -245,7 +283,7 @@ export default function AmbientAgent() {
           className="flex items-center gap-2 px-3 py-2 font-mono text-[10px] tracking-[0.14em] text-faint uppercase transition-colors hover:text-accent"
         >
           <span className={`h-1.5 w-1.5 rounded-full ${disabled ? "bg-faint" : touring ? "bg-accent" : "agent-dot bg-accent"}`} />
-          {disabled ? "Agent: off" : touring ? "Agent: driving" : "Agent: observing"}
+          {disabled ? "Agent: off" : touring ? "Agent: driving" : `Agent: ${ticker || "observing"}`}
         </button>
         <button
           aria-label={soundOn ? "Mute agent voice" : "Enable agent voice"}
@@ -285,6 +323,16 @@ export default function AmbientAgent() {
       >
         see what the agent sees <span className="text-accent">→</span>
       </button>
+
+      {/* hover quip */}
+      {quip && quip.text && (
+        <p
+          className="agent-quip border border-line bg-bg/95 px-3 py-2 font-mono text-[10px] leading-relaxed text-muted backdrop-blur"
+          style={{ left: quip.x, top: quip.y }}
+        >
+          {quip.text}
+        </p>
+      )}
 
       {/* whisper */}
       {whisper && (

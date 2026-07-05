@@ -44,7 +44,7 @@ export function Hero() {
         <figure className="order-first shrink-0 lg:order-none">
           <div className="w-fit border border-line bg-surface p-1.5">
             <Image
-              src="/amine-bouhlal.jpg"
+              src="/amine-bouhlal-bw.jpg"
               alt="Portrait of Amine Bouhlal"
               width={800}
               height={800}
