@@ -122,7 +122,11 @@ export default function AmbientAgent() {
   // ~ toggles the console
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === "~" || e.key === "º" || e.key === "`") && !e.metaKey && !e.ctrlKey) {
+      // "~" arrives differently per layout: direct on US/ES, AltGr+é dead key
+      // on French AZERTY (Windows reports AltGr as ctrl+alt, key = "Dead").
+      const direct = (e.key === "~" || e.key === "º" || e.key === "`") && !e.metaKey && (!e.ctrlKey || e.altKey);
+      const deadTilde = e.key === "Dead" && e.altKey;
+      if (direct || deadTilde) {
         const t = e.target as HTMLElement;
         if (t.tagName === "INPUT" || t.tagName === "TEXTAREA") return;
         setConsoleOpen((o) => !o);
@@ -168,13 +172,14 @@ export default function AmbientAgent() {
       </a>
 
       {/* console hint (revealed by rule R4) */}
-      <p
+      <button
         hidden
         data-agent-reveal="console-hint"
-        className="fixed right-4 bottom-14 z-40 border border-line-soft bg-bg/90 px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-faint backdrop-blur"
+        onClick={() => setConsoleOpen(true)}
+        className="fixed right-4 bottom-14 z-40 cursor-pointer border border-line-soft bg-bg/90 px-3 py-2 font-mono text-[10px] tracking-[0.12em] text-faint backdrop-blur transition-colors hover:border-accent hover:text-accent"
       >
-        press <span className="text-accent">~</span> to see what the agent sees
-      </p>
+        see what the agent sees <span className="text-accent">→</span>
+      </button>
 
       {/* whisper */}
       {whisper && (
