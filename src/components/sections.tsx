@@ -91,7 +91,6 @@ export function Work() {
           <Link
             key={c.slug}
             href={`/work/${c.slug}`}
-            data-agent-card={c.slug}
             className={`group bg-bg p-7 transition-colors hover:bg-surface sm:p-9 ${
               i === 0 ? "sm:col-span-2" : ""
             }`}
